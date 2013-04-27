@@ -15,7 +15,7 @@
 
 int GetLargestV(int, int, int);
 
-int choose_cache[][6] = {
+const int choose_cache[][6] = {
         {0, 0, 0, 0, 0, 0},
         {0, 1, 0, 0, 0, 0},
         {0, 2, 1, 0, 0, 0},
@@ -102,10 +102,6 @@ void GetAdjacencyMatrixFromCharArray(char bit_arr[], int adj[N][N])
             x++;
         }
     }
-
-	/*for (int i = 0; i < N; i++) {
-		adj[i][i] = -1;
-	}*/
 }
 
 /*

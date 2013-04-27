@@ -7,6 +7,7 @@
 #define POPULATION_SIZE 150
 #define POPULATION_PADDING 500
 #define CHROMOSOME_LENGTH 903
+#define CROSSES 1000000
 
 typedef struct member_struct {
     char* chromosome;
@@ -17,8 +18,11 @@ void PrintPopulation(MEMBER[]);
 void SortInitialPopulation(MEMBER[], int, int);
 void Cross(MEMBER*, MEMBER*, MEMBER*);
 void InitializeRandomMember(MEMBER*);
-void printMatrix(int[N][N]);
+void PrintMatrix(int[N][N]);
 void InsertMember(MEMBER[], MEMBER);
+void BiasedCross(MEMBER[2], MEMBER*);
+void RandomSinglePointCross(MEMBER[2], MEMBER*);
+void Mutate(MEMBER*);
 
 int main(int argc, const char* argv[])
 {
@@ -44,6 +48,43 @@ int main(int argc, const char* argv[])
 		//PrintPopulation(population);
 	}
 	PrintPopulation(population);
+
+	std::cout << "BREEDING" << std::endl << std::endl;
+
+	/* breed children */
+	int best = 999999;
+	for (int i = 0; i < CROSSES; i++) {
+		MEMBER parents[2];
+		MEMBER child;
+
+		parents[0] = population[rand() % POPULATION_SIZE];
+		parents[1] = population[rand() % POPULATION_SIZE];
+		//RandomSinglePointCross(parents, &child);
+		BiasedCross(parents, &child);
+		
+		/* NOT GOING TO HAPPEN */
+		if (child.num_cliques < 10) {
+			std::cout << child.num_cliques << ":" << child.chromosome << std::endl;
+			std::getchar();
+		}
+
+		InsertMember(population, child);
+		if (population[0].num_cliques < best) {
+			best = population[0].num_cliques;
+			std::cout << "Current best: " << best << std::endl;
+		}
+		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
+			std::cout << "CONVERGED. MUTATING." << std::endl;
+			for (int j = POPULATION_SIZE / 2; j < POPULATION_SIZE; j++) {
+				Mutate(&population[j]);
+			}
+		}
+	}
+
+	std::cout << std::endl;
+	PrintPopulation(population);
+	std::cout << "Best member: " << population[0].num_cliques << std::endl;
+	std::cout << population[0].chromosome << std::endl << std::endl;
 
     /* leave console up until keypress */
 	std::cout << "FINISHED AND WAITING FOR RETURN KEY" << std::endl;
@@ -124,11 +165,12 @@ void InitializeRandomMember(MEMBER *member)
 		char_bits[i] = child_chromosome[i] - 0x30;
     }
 
-    child_chromosome[903] = '\0';
+    child_chromosome[CHROMOSOME_LENGTH] = '\0';
 
     int adjacency_matrix[N][N];
     GetAdjacencyMatrixFromCharArray(char_bits, adjacency_matrix);
     int num_cliques = 0;
+
     /* evaluate every possible clique */
     for (int i = 0; i < UPPER_BOUND; i++) {
 		int arr[5] = { 0, 0, 0, 0, 0 };
@@ -144,7 +186,7 @@ void InitializeRandomMember(MEMBER *member)
     member->num_cliques = num_cliques;
 }
 
-void printMatrix(int arr[N][N]) {
+void PrintMatrix(int arr[N][N]) {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			std::cout << arr[i][j] << " ";
@@ -153,25 +195,105 @@ void printMatrix(int arr[N][N]) {
 	}
 }
 
-void Cross(MEMBER *mom, MEMBER *pop, MEMBER *child)
+void Mutate(MEMBER *member) {
+	int bit = rand() % CHROMOSOME_LENGTH;
+	if (member->chromosome[bit] == '0') {
+		member->chromosome[bit] = '1';
+	} else {
+		member->chromosome[bit] = '0';
+	}
+}
+
+void BiasedCross(MEMBER parents[2], MEMBER *child)
 {
-    char *mom_chromosome = mom->chromosome;
-    char *pop_chromosome = pop->chromosome;
+	char *chromosome[2];
+    chromosome[0] = parents[0].chromosome;
+    chromosome[1] = parents[1].chromosome;
 
-    char *child_chromosome = (char*)(malloc(sizeof(char) * 903 + 1));
+    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH + 1));
+	char *char_bits = new char[CHROMOSOME_LENGTH];
 
-    int crossover = 2;//rand() % CHROMOSOME_LENGTH;
-    for (int i = 0; i < crossover; i++) {
-        child_chromosome[i] = mom_chromosome[i];
-        printf("%d\n", i);
-        std::getchar();
+	float bias;
+	float parent_cliques[2];
+	parent_cliques[0] = (float)parents[0].num_cliques;
+	parent_cliques[1] = (float)parents[1].num_cliques;
+
+	bias = parent_cliques[parent_cliques[0] < parent_cliques[1]] / (parent_cliques[0] + parent_cliques[1]);
+	MEMBER bad;
+	MEMBER good;
+	if (parent_cliques[0] < parent_cliques[1]) {
+		bad = parents[1];
+		good = parents[0];
+	} else {
+		bad = parents[0];
+		good = parents[1];
+	}
+
+	for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
+		if (((float)rand() / (float)RAND_MAX) > bias) {
+			child_chromosome[i] = bad.chromosome[i];
+		} else {
+			child_chromosome[i] = good.chromosome[i];
+		}
+		char_bits[i] = child_chromosome[i] - 0x30;
+	}
+
+	child_chromosome[CHROMOSOME_LENGTH] = '\0';
+
+	int adjacency_matrix[N][N];
+    GetAdjacencyMatrixFromCharArray(char_bits, adjacency_matrix);
+    int num_cliques = 0;
+    /* evaluate every possible clique */
+    for (int i = 0; i < UPPER_BOUND; i++) {
+		int arr[5] = { 0, 0, 0, 0, 0 };
+        GetElement(i, arr);
+            
+        int result = EvaluateEdges(arr, adjacency_matrix);
+            
+        if (result == 0 || result == KC2) {
+            num_cliques++;
+		}
     }
-    printf("TEST");
-    std::getchar();
-    for (int i = crossover; i < CHROMOSOME_LENGTH; i++) {
-        child_chromosome[i] = pop_chromosome[i];
-    }
-    child_chromosome[903] = '\0';
+
     child->chromosome = child_chromosome;
-    child->num_cliques = 0;
+    child->num_cliques = num_cliques;
+}
+
+void RandomSinglePointCross(MEMBER parents[2], MEMBER *child)
+{
+	char *chromosome[2];
+    chromosome[0] = parents[0].chromosome;
+    chromosome[1] = parents[1].chromosome;
+
+    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH + 1));
+	char *char_bits = new char[CHROMOSOME_LENGTH];
+
+    int crossover = rand() % CHROMOSOME_LENGTH;
+    for (int i = 0; i < crossover; i++) {
+        child_chromosome[i] = chromosome[0][i];
+		char_bits[i] = child_chromosome[i] - 0x30;
+    }
+    for (int i = crossover; i < CHROMOSOME_LENGTH; i++) {
+        child_chromosome[i] = chromosome[1][i];
+		char_bits[i] = child_chromosome[i] - 0x30;
+    }
+    child_chromosome[CHROMOSOME_LENGTH] = '\0';
+
+	int adjacency_matrix[N][N];
+    GetAdjacencyMatrixFromCharArray(char_bits, adjacency_matrix);
+    int num_cliques = 0;
+    /* evaluate every possible clique */
+    for (int i = 0; i < UPPER_BOUND; i++) {
+		int arr[5] = { 0, 0, 0, 0, 0 };
+        GetElement(i, arr);
+            
+        int result = EvaluateEdges(arr, adjacency_matrix);
+            
+        if (result == 0 || result == KC2) {
+            num_cliques++;
+		}
+    }
+
+    child->chromosome = child_chromosome;
+    child->num_cliques = num_cliques;
 }
