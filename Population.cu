@@ -4,7 +4,8 @@
 #include <time.h>
 #include "Fitness.h"
 
-#define POPULATION_SIZE 200
+#define POPULATION_SIZE 150
+#define POPULATION_PADDING 500
 #define CHROMOSOME_LENGTH 903
 
 typedef struct member_struct {
@@ -13,46 +14,39 @@ typedef struct member_struct {
 } MEMBER;
 
 void PrintPopulation(MEMBER[]);
-void SortPopulation(MEMBER[], int, int);
+void SortInitialPopulation(MEMBER[], int, int);
 void Cross(MEMBER*, MEMBER*, MEMBER*);
 void InitializeRandomMember(MEMBER*);
+void printMatrix(int[N][N]);
+void InsertMember(MEMBER[], MEMBER);
 
 int main(int argc, const char* argv[])
 {
-    /*
-    MEMBER population[POPULATION_SIZE];
-    srand(time(NULL));
-
-    for (int i = 0; i < POPULATION_SIZE; i++) {
-        char *chromosome = "1111111111111111\0";
-        for (int j = 0; j < CHROMOSOME_LENGTH; j++) {
-            if (rand() % 2) {
-                chromosome[j] = '0';
-            }
-        }
-        population[i].chromosome = chromosome;
-        population[i].num_cliques = rand() % 1000;
-        
-    }
-
-    PrintPopulation(population);
-    SortPopulation(population, 0, POPULATION_SIZE - 1);
-    PrintPopulation(population);
-    */
-
     srand(time(NULL)); //init random seed
 
-    MEMBER population[200];
+	std::cout << "INITIALIZING POPULATION" << std::endl;
+
+    MEMBER population[POPULATION_SIZE];
 
     for (int i = 0; i < POPULATION_SIZE; i++) {
         InitializeRandomMember(&population[i]);
     }
 
-    //Cross(&population[0], &population[1], &population[2]);
+	SortInitialPopulation(population, 0, POPULATION_SIZE - 1);
+	PrintPopulation(population);
 
-    PrintPopulation(population);
-    
+	std::cout << "PADDING POPULATION" << std::endl << std::endl;
+
+	for (int i = 0; i < POPULATION_PADDING; i++) {
+		MEMBER member;
+		InitializeRandomMember(&member);
+		InsertMember(population, member);
+		//PrintPopulation(population);
+	}
+	PrintPopulation(population);
+
     /* leave console up until keypress */
+	std::cout << "FINISHED AND WAITING FOR RETURN KEY" << std::endl;
     std::getchar();
 }
 
@@ -62,8 +56,8 @@ int main(int argc, const char* argv[])
 void PrintPopulation(MEMBER population[])
 {
     for (int i = 0; i < POPULATION_SIZE; i++) {
-        std::cout << "Member " << std::setw(2) << i << ": " ;
-        std::cout << std::setw(3) << population[i].num_cliques << std::endl;
+        std::cout << "Member " << std::setw(3) << i + 1 << ": " ;
+        std::cout << std::setw(4) << population[i].num_cliques << std::endl;
     }
     std::cout << std::endl;
 }
@@ -71,7 +65,7 @@ void PrintPopulation(MEMBER population[])
 /*
  * Performs a quicksort on an array of MEMBER.
  */
-void SortPopulation(MEMBER population[], int left, int right)
+void SortInitialPopulation(MEMBER population[], int left, int right)
 {
     int i = left;
     int j = right;
@@ -97,44 +91,67 @@ void SortPopulation(MEMBER population[], int left, int right)
 
     /* recursively sort either side of pivot */
     if (left < j) {
-        SortPopulation(population, left, j);
+        SortInitialPopulation(population, left, j);
     }
     if (i < right) {
-        SortPopulation(population, i, right);
+        SortInitialPopulation(population, i, right);
     }
 
     return;
 }
 
+void InsertMember(MEMBER population[], MEMBER member)
+{
+	if (member.num_cliques < population[POPULATION_SIZE - 1].num_cliques) {
+		population[POPULATION_SIZE - 1] = member;
+		for (int i = POPULATION_SIZE - 1; i > 0; i--) {
+			if (population[i].num_cliques < population[i - 1].num_cliques) {
+				population[i] = population[i - 1];
+				population[i - 1] = member;
+			} else {
+				break;
+			}
+		}
+	}
+}
+
 void InitializeRandomMember(MEMBER *member)
 {
-    char *child_chromosome = (char*)(malloc(sizeof(char) * 903 + 1));
-
-    for (int i = 0; i < 903; i++) {
-        child_chromosome[i] = rand() % 2 == 0 ? '0' : '1';
+    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH + 1));
+	char *char_bits = new char[CHROMOSOME_LENGTH];
+    for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
+        child_chromosome[i] = rand() % 2 + 0x30;
+		char_bits[i] = child_chromosome[i] - 0x30;
     }
 
     child_chromosome[903] = '\0';
 
     int adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
-    int arr[5] = { 0, 0, 0, 0, 0 };
+    GetAdjacencyMatrixFromCharArray(char_bits, adjacency_matrix);
     int num_cliques = 0;
     /* evaluate every possible clique */
     for (int i = 0; i < UPPER_BOUND; i++) {
+		int arr[5] = { 0, 0, 0, 0, 0 };
         GetElement(i, arr);
             
-        int result = EvaluateEdges(arr);
+        int result = EvaluateEdges(arr, adjacency_matrix);
             
         if (result == 0 || result == KC2) {
             num_cliques++;
-        }
+		}
     }
-
     member->chromosome = child_chromosome;
     member->num_cliques = num_cliques;
 }
 
+void printMatrix(int arr[N][N]) {
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			std::cout << arr[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+}
 
 void Cross(MEMBER *mom, MEMBER *pop, MEMBER *child)
 {
