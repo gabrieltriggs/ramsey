@@ -6,12 +6,13 @@
 #include "Fitness.h"
 #include "CudaEval.h"
 
-#define POPULATION_SIZE 175
+#define POPULATION_SIZE 150
 #define POPULATION_PADDING 1000
 #define CHROMOSOME_LENGTH 903
-#define CROSSES 100000
-#define CROSSOVER_FUNCTIONS 3
+#define CROSSES 150000
 #define START_CLIMBING 5000
+#define START_MUTATION 50000
+#define CROSSOVER_FUNCTIONS 2
 
 typedef struct member_struct {
     char* chromosome;
@@ -25,7 +26,6 @@ void InitializeRandomMember(MEMBER*);
 void PrintMatrix(int[N][N]);
 void InsertMember(MEMBER[], MEMBER);
 void BiasedCross(MEMBER[2], MEMBER*);
-void BiasederCross(MEMBER[2], MEMBER*);
 void RandomSinglePointCross(MEMBER[2], MEMBER*);
 void Mutate(MEMBER*);
 void Climb(MEMBER*);
@@ -39,8 +39,7 @@ int main(int argc, const char* argv[])
 	/* init cross pointers */
 	void (*Cross[CROSSOVER_FUNCTIONS])(MEMBER[2], MEMBER*) = {NULL};
 	Cross[0] = &BiasedCross;
-	Cross[1] = &BiasederCross;
-	Cross[2] = &RandomSinglePointCross;
+	Cross[1] = &RandomSinglePointCross;
 	
 	unsigned int seed = time(NULL);
     //unsigned int seed = 1367392616;
@@ -85,18 +84,26 @@ int main(int argc, const char* argv[])
 			}
 		}
 
+		if (i > START_MUTATION && i % 2000 == 0) {
+			std::cout << "MUTATING" << std::endl;
+			int x;
+			for (int j = 0; j < POPULATION_SIZE / 10; j++) {
+				x = rand() % (POPULATION_SIZE - 5) + 5;
+				Mutate(&population[x]);
+			}
+		}
+
 		MEMBER parents[2];
 		MEMBER child;
 
-		parents[0] = population[rand() % POPULATION_SIZE];
-		parents[1] = population[rand() % POPULATION_SIZE];
-		int cross = population[0].num_cliques < 400 ? 2 : 0;
-		(*Cross[cross])(parents, &child);
+		//parents[0] = population[rand() % POPULATION_SIZE];
+		//parents[1] = population[rand() % POPULATION_SIZE];
 
-		/*parents[0] = population[rand() % (POPULATION_SIZE / 2)];
-		//parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
-		//(*Cross[1])(parents, &child);
-		//(*Cross[0])(parents, &child);
+		parents[0] = population[rand() % (POPULATION_SIZE / 2)];
+		parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
+
+		int cross = population[0].num_cliques < 400? rand() % 2 : 0;
+		(*Cross[cross])(parents, &child);
 
 		/* NOT GOING TO HAPPEN */
 		if (child.num_cliques < 10) {
@@ -118,7 +125,7 @@ int main(int argc, const char* argv[])
 
 		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
 			std::cout << "MIGRATING" << std::endl;
-			for (int j = 5; j < POPULATION_SIZE; j++) {
+			for (int j = POPULATION_SIZE/20; j < POPULATION_SIZE; j++) {
 				free(population[j].chromosome);
 				InitializeRandomMember(&population[j]);
 			}
@@ -288,37 +295,6 @@ void BiasedCross(MEMBER parents[2], MEMBER *child)
 			child_chromosome[i] = bad.chromosome[i];
 		} else {
 			child_chromosome[i] = good.chromosome[i];
-		}
-	}
-
-	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
-    int num_cliques = EvalAdj(adjacency_matrix);
-
-    child->chromosome = child_chromosome;
-    child->num_cliques = num_cliques;
-}
-
-void BiasederCross(MEMBER parents[2], MEMBER *child)
-{
-	char *chromosome[2];
-    chromosome[0] = parents[0].chromosome;
-    chromosome[1] = parents[1].chromosome;
-
-    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
-
-	float bias;
-	float parent_cliques[2];
-	parent_cliques[0] = (float)parents[0].num_cliques;
-	parent_cliques[1] = (float)parents[1].num_cliques;
-
-	bias = parent_cliques[1] / (parent_cliques[0] + parent_cliques[1]);
-
-	for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
-		if (((float)rand() / (float)RAND_MAX) > bias) {
-			child_chromosome[i] = chromosome[1][i];
-		} else {
-			child_chromosome[i] = chromosome[0][i];
 		}
 	}
 
