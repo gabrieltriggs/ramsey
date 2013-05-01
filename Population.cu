@@ -6,7 +6,7 @@
 #include "Fitness.h"
 #include "CudaEval.h"
 
-#define POPULATION_SIZE 150
+#define POPULATION_SIZE 175
 #define POPULATION_PADDING 1000
 #define CHROMOSOME_LENGTH 903
 #define CROSSES 100000
@@ -90,7 +90,8 @@ int main(int argc, const char* argv[])
 
 		parents[0] = population[rand() % POPULATION_SIZE];
 		parents[1] = population[rand() % POPULATION_SIZE];
-		(*Cross[0])(parents, &child);
+		int cross = population[0].num_cliques < 400 ? 2 : 0;
+		(*Cross[cross])(parents, &child);
 
 		/*parents[0] = population[rand() % (POPULATION_SIZE / 2)];
 		//parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
@@ -118,8 +119,8 @@ int main(int argc, const char* argv[])
 		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
 			std::cout << "MIGRATING" << std::endl;
 			for (int j = 5; j < POPULATION_SIZE; j++) {
-				free(population[i].chromosome);
-				InitializeRandomMember(&population[i]);
+				free(population[j].chromosome);
+				InitializeRandomMember(&population[j]);
 			}
 		}
 	}
@@ -247,26 +248,18 @@ void Mutate(MEMBER *member) {
 }
 
 void Climb(MEMBER *member) {
-	char *original_chromosome = member->chromosome;
-	char *new_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
-
-	for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
-		new_chromosome[i] = original_chromosome[i];
-	}
-
+	
 	int bit = rand() % CHROMOSOME_LENGTH;
-	new_chromosome[bit] ^= 1;
+	member->chromosome[bit] ^= 1;
 
 	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(new_chromosome, adjacency_matrix);
+    GetAdjacencyMatrixFromCharArray(member->chromosome, adjacency_matrix);
     int num_cliques = EvalAdj(adjacency_matrix);
 
 	if (num_cliques < member->num_cliques) {
 		member->num_cliques = num_cliques;
-		free(member->chromosome);
-		member->chromosome = new_chromosome;
 	} else {
-		free(new_chromosome);
+		member->chromosome[bit] ^= 1;
 	}
 }
 
