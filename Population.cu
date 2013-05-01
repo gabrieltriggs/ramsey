@@ -247,26 +247,17 @@ void Mutate(MEMBER *member) {
 }
 
 void Climb(MEMBER *member) {
-	char *original_chromosome = member->chromosome;
-	char *new_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
-
-	for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
-		new_chromosome[i] = original_chromosome[i];
-	}
-
 	int bit = rand() % CHROMOSOME_LENGTH;
-	new_chromosome[bit] ^= 1;
+	member->chromosome[bit] ^= 1;
 
 	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(new_chromosome, adjacency_matrix);
+	GetAdjacencyMatrixFromCharArray(member->chromosome, adjacency_matrix);
     int num_cliques = EvalAdj(adjacency_matrix);
 
 	if (num_cliques < member->num_cliques) {
 		member->num_cliques = num_cliques;
-		free(member->chromosome);
-		member->chromosome = new_chromosome;
 	} else {
-		free(new_chromosome);
+		member->chromosome[bit] ^= 1;
 	}
 }
 
