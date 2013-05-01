@@ -10,6 +10,8 @@
 #define POPULATION_PADDING 1000
 #define CHROMOSOME_LENGTH 903
 #define CROSSES 100000
+#define CROSSOVER_FUNCTIONS 3
+#define START_CLIMBING 5000
 
 typedef struct member_struct {
     char* chromosome;
@@ -26,14 +28,23 @@ void BiasedCross(MEMBER[2], MEMBER*);
 void BiasederCross(MEMBER[2], MEMBER*);
 void RandomSinglePointCross(MEMBER[2], MEMBER*);
 void Mutate(MEMBER*);
+void Climb(MEMBER*);
 int EvalAdj(char[N][N]);
 
 int main(int argc, const char* argv[])
 {
 	std::ofstream file;
 	file.open("ramsey.txt", std::ios::app);
+	
+	/* init cross pointers */
+	void (*Cross[CROSSOVER_FUNCTIONS])(MEMBER[2], MEMBER*) = {NULL};
+	Cross[0] = &BiasedCross;
+	Cross[1] = &BiasederCross;
+	Cross[2] = &RandomSinglePointCross;
+	
 	unsigned int seed = time(NULL);
-    srand(seed); //init random seed
+    //unsigned int seed = 1367392616;
+	srand(seed); //init random seed
 	CudaInit();
 
 	std::cout << "INITIALIZING POPULATION" << std::endl;
@@ -61,17 +72,30 @@ int main(int argc, const char* argv[])
 	/* breed children */
 	int best = 999999;
 	for (int i = 0; i < CROSSES; i++) {
+		
+		if (i > START_CLIMBING && i % 500 == 0) {
+			std::cout << "CLIMBING" << std::endl;
+			for (int j = 0; j < POPULATION_SIZE; j++) {
+				Climb(&population[j]);
+			}
+			SortInitialPopulation(population, 0, POPULATION_SIZE - 1);
+			if (population[0].num_cliques < best) {
+				best = population[0].num_cliques;
+				std::cout << "Current best (H): " << best << std::endl;
+			}
+		}
+
 		MEMBER parents[2];
 		MEMBER child;
 
-		//parents[0] = population[rand() % POPULATION_SIZE];
-		//parents[1] = population[rand() % POPULATION_SIZE];
-		////RandomSinglePointCross(parents, &child);
-		//BiasedCross(parents, &child);
+		parents[0] = population[rand() % POPULATION_SIZE];
+		parents[1] = population[rand() % POPULATION_SIZE];
+		(*Cross[0])(parents, &child);
 
-		parents[0] = population[rand() % (POPULATION_SIZE / 2)];
-		parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
-		BiasederCross(parents, &child);
+		/*parents[0] = population[rand() % (POPULATION_SIZE / 2)];
+		//parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
+		//(*Cross[1])(parents, &child);
+		//(*Cross[0])(parents, &child);
 
 		/* NOT GOING TO HAPPEN */
 		if (child.num_cliques < 10) {
@@ -88,12 +112,12 @@ int main(int argc, const char* argv[])
 
 		if (population[0].num_cliques < best) {
 			best = population[0].num_cliques;
-			std::cout << "Current best: " << best << std::endl;
+			std::cout << "Current best (X): " << best << std::endl;
 		}
 
 		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
 			std::cout << "MIGRATING" << std::endl;
-			for (int i = 5; i < POPULATION_SIZE; i++) {
+			for (int j = 5; j < POPULATION_SIZE; j++) {
 				free(population[i].chromosome);
 				InitializeRandomMember(&population[i]);
 			}
@@ -220,6 +244,30 @@ void PrintMatrix(int arr[N][N]) {
 void Mutate(MEMBER *member) {
 	int bit = rand() % CHROMOSOME_LENGTH;
 	member->chromosome[bit] ^= 1;
+}
+
+void Climb(MEMBER *member) {
+	char *original_chromosome = member->chromosome;
+	char *new_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+
+	for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
+		new_chromosome[i] = original_chromosome[i];
+	}
+
+	int bit = rand() % CHROMOSOME_LENGTH;
+	new_chromosome[bit] ^= 1;
+
+	char adjacency_matrix[N][N];
+    GetAdjacencyMatrixFromCharArray(new_chromosome, adjacency_matrix);
+    int num_cliques = EvalAdj(adjacency_matrix);
+
+	if (num_cliques < member->num_cliques) {
+		member->num_cliques = num_cliques;
+		free(member->chromosome);
+		member->chromosome = new_chromosome;
+	} else {
+		free(new_chromosome);
+	}
 }
 
 void BiasedCross(MEMBER parents[2], MEMBER *child)
