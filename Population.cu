@@ -43,7 +43,7 @@ int main(int argc, const char* argv[])
 	Cross[2] = &RandomSinglePointCross;
 	
 	unsigned int seed = time(NULL);
-    //unsigned int seed = 1367392616;
+	//unsigned int seed = 1367392616;
 	srand(seed); //init random seed
 	CudaInit();
 
@@ -145,9 +145,9 @@ int main(int argc, const char* argv[])
 	file << "SEED: " << seed << std::endl << std::endl;
 	file.close();
 
-    /* leave console up until keypress */
+	/* leave console up until keypress */
 	std::cout << "FINISHED AND WAITING FOR RETURN KEY" << std::endl;
-    std::getchar();
+	std::getchar();
 }
 
 /*
@@ -220,7 +220,7 @@ void InsertMember(MEMBER population[], MEMBER member)
 
 void InitializeRandomMember(MEMBER *member)
 {
-    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+	char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
     for (int i = 0; i < CHROMOSOME_LENGTH; i++) {
         child_chromosome[i] = rand() % 2;
     }
@@ -252,7 +252,7 @@ void Climb(MEMBER *member) {
 
 	char adjacency_matrix[N][N];
 	GetAdjacencyMatrixFromCharArray(member->chromosome, adjacency_matrix);
-    int num_cliques = EvalAdj(adjacency_matrix);
+	int num_cliques = EvalAdj(adjacency_matrix);
 
 	if (num_cliques < member->num_cliques) {
 		member->num_cliques = num_cliques;
@@ -263,7 +263,7 @@ void Climb(MEMBER *member) {
 
 void BiasedCross(MEMBER parents[2], MEMBER *child)
 {
-    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+	char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
 
 	float bias;
 	float parent_cliques[2];
@@ -290,20 +290,20 @@ void BiasedCross(MEMBER parents[2], MEMBER *child)
 	}
 
 	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
-    int num_cliques = EvalAdj(adjacency_matrix);
+	GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
+	int num_cliques = EvalAdj(adjacency_matrix);
 
-    child->chromosome = child_chromosome;
-    child->num_cliques = num_cliques;
+	child->chromosome = child_chromosome;
+	child->num_cliques = num_cliques;
 }
 
 void BiasederCross(MEMBER parents[2], MEMBER *child)
 {
 	char *chromosome[2];
-    chromosome[0] = parents[0].chromosome;
-    chromosome[1] = parents[1].chromosome;
+	chromosome[0] = parents[0].chromosome;
+	chromosome[1] = parents[1].chromosome;
 
-    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+	char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
 
 	float bias;
 	float parent_cliques[2];
@@ -321,37 +321,37 @@ void BiasederCross(MEMBER parents[2], MEMBER *child)
 	}
 
 	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
-    int num_cliques = EvalAdj(adjacency_matrix);
+	GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
+	int num_cliques = EvalAdj(adjacency_matrix);
 
-    child->chromosome = child_chromosome;
-    child->num_cliques = num_cliques;
+	child->chromosome = child_chromosome;
+	child->num_cliques = num_cliques;
 }
 
 void RandomSinglePointCross(MEMBER parents[2], MEMBER *child)
 {
 	char *chromosome[2];
-    chromosome[0] = parents[0].chromosome;
-    chromosome[1] = parents[1].chromosome;
+	chromosome[0] = parents[0].chromosome;
+	chromosome[1] = parents[1].chromosome;
 
-    char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+	char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
 
-    int crossover = rand() % CHROMOSOME_LENGTH;
+	int crossover = rand() % CHROMOSOME_LENGTH;
     
 	for (int i = 0; i < crossover; i++) {
-        child_chromosome[i] = chromosome[0][i];
-    }
+		child_chromosome[i] = chromosome[0][i];
+	}
 
-    for (int i = crossover; i < CHROMOSOME_LENGTH; i++) {
-        child_chromosome[i] = chromosome[1][i];
-    }
+	for (int i = crossover; i < CHROMOSOME_LENGTH; i++) {
+		child_chromosome[i] = chromosome[1][i];
+	}
 
 	char adjacency_matrix[N][N];
-    GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
-    int num_cliques = EvalAdj(adjacency_matrix);
+	GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
+	int num_cliques = EvalAdj(adjacency_matrix);
 
-    child->chromosome = child_chromosome;
-    child->num_cliques = num_cliques;
+	child->chromosome = child_chromosome;
+	child->num_cliques = num_cliques;
 }
 
 int EvalAdj(char adj[N][N]) {
