@@ -102,6 +102,7 @@ int main(int argc, const char* argv[])
 		parents[1] = population[rand() % (((int) ((float) POPULATION_SIZE * 0.7)) + ((int) ((float) POPULATION_SIZE * 0.3)))];
 
 		int cross = population[0].num_cliques < CROSSOVER_RANDOMIZATION_POINT? rand() % 2 : 0;
+		//int cross = 0;
 		(*Cross[cross])(parents, &child);
 		InsertMember(population, child);
 
@@ -124,10 +125,10 @@ int main(int argc, const char* argv[])
 		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
 			std::cout << "MIGRATING" << std::endl;
 			for (int j = (int) ((float) POPULATION_SIZE * 0.05); j < POPULATION_SIZE; j++) {
-				//free(population[j].chromosome);
+				free(population[j].chromosome);
 				InitializeRandomMember(&population[j]);
 			}
-			SortInitialPopulation(population, 0, POPULATION_SIZE);
+			SortInitialPopulation(population, 0, POPULATION_SIZE - 1);
 		}
 	}
 
