@@ -6,13 +6,14 @@
 #include "Fitness.h"
 #include "CudaEval.h"
 
-#define POPULATION_SIZE 150
-#define POPULATION_PADDING 1000
+#define POPULATION_SIZE 200
+#define POPULATION_PADDING 1500
 #define CHROMOSOME_LENGTH 903
 #define CROSSES 150000
 #define START_CLIMBING 5000
 #define START_MUTATION 50000
 #define CROSSOVER_FUNCTIONS 2
+#define CROSSOVER_RANDOMIZATION_POINT 300
 
 typedef struct member_struct {
     char* chromosome;
@@ -32,19 +33,17 @@ void Climb(MEMBER*);
 int EvalAdj(char[N][N]);
 
 int main(int argc, const char* argv[])
-{
-	std::ofstream file;
-	file.open("ramsey.txt", std::ios::app);
-	
+{	
 	/* init cross pointers */
 	void (*Cross[CROSSOVER_FUNCTIONS])(MEMBER[2], MEMBER*) = {NULL};
 	Cross[0] = &BiasedCross;
 	Cross[1] = &RandomSinglePointCross;
 	
 	unsigned int seed = time(NULL);
-    //unsigned int seed = 1367392616;
 	srand(seed); //init random seed
 	CudaInit();
+
+	for (int p = 0; p < 10; p++) {
 
 	std::cout << "INITIALIZING POPULATION" << std::endl;
 
@@ -87,7 +86,7 @@ int main(int argc, const char* argv[])
 		if (i > START_MUTATION && i % 2000 == 0) {
 			std::cout << "MUTATING" << std::endl;
 			int x;
-			for (int j = 0; j < POPULATION_SIZE / 10; j++) {
+			for (int j = 0; j < (int) ((float) POPULATION_SIZE * 0.25); j++) {
 				x = rand() % (POPULATION_SIZE - 5) + 5;
 				Mutate(&population[x]);
 			}
@@ -99,23 +98,11 @@ int main(int argc, const char* argv[])
 		//parents[0] = population[rand() % POPULATION_SIZE];
 		//parents[1] = population[rand() % POPULATION_SIZE];
 
-		parents[0] = population[rand() % (POPULATION_SIZE / 2)];
-		parents[1] = population[(rand() % (POPULATION_SIZE / 2) + POPULATION_SIZE / 2)];
+		parents[0] = population[rand() % ((int) ((float) POPULATION_SIZE * 0.3))];
+		parents[1] = population[rand() % (((int) ((float) POPULATION_SIZE * 0.7)) + ((int) ((float) POPULATION_SIZE * 0.3)))];
 
-		int cross = population[0].num_cliques < 400? rand() % 2 : 0;
+		int cross = population[0].num_cliques < CROSSOVER_RANDOMIZATION_POINT? rand() % 2 : 0;
 		(*Cross[cross])(parents, &child);
-
-		/* NOT GOING TO HAPPEN */
-		if (child.num_cliques < 10) {
-			std::cout << child.num_cliques << ":" << std::endl;
-
-			for (int j = 0; j < CHROMOSOME_LENGTH; j++) {
-				std::cout << (char) (child.chromosome[j] + 0x30);
-			}
-
-			std::cout << std::endl;
-		}
-
 		InsertMember(population, child);
 
 		if (population[0].num_cliques < best) {
@@ -123,12 +110,24 @@ int main(int argc, const char* argv[])
 			std::cout << "Current best (X): " << best << std::endl;
 		}
 
+		/* NOT GOING TO HAPPEN */
+		if (best < 10) {
+			std::cout << population[0].num_cliques << ":" << std::endl;
+
+			for (int j = 0; j < CHROMOSOME_LENGTH; j++) {
+				std::cout << (char) (population[0].chromosome[j] + 0x30);
+			}
+
+			std::cout << std::endl;
+		}
+
 		if (population[POPULATION_SIZE - 1].num_cliques == population[0].num_cliques) {
 			std::cout << "MIGRATING" << std::endl;
-			for (int j = POPULATION_SIZE/20; j < POPULATION_SIZE; j++) {
-				free(population[j].chromosome);
+			for (int j = (int) ((float) POPULATION_SIZE * 0.05); j < POPULATION_SIZE; j++) {
+				//free(population[j].chromosome);
 				InitializeRandomMember(&population[j]);
 			}
+			SortInitialPopulation(population, 0, POPULATION_SIZE);
 		}
 	}
 
@@ -144,6 +143,8 @@ int main(int argc, const char* argv[])
 	/* echo seed for posterity */
 	std::cout << "SEED: " << seed << std::endl;
 
+	std::ofstream file;
+	file.open("ramsey.txt", std::ios::app);
 	file << "BEST: " << best << std::endl;
 	file << "ENCODING: " << std::endl;
 	for (int j = 0; j < CHROMOSOME_LENGTH; j++) {
@@ -152,6 +153,11 @@ int main(int argc, const char* argv[])
 	file << std::endl;
 	file << "SEED: " << seed << std::endl << std::endl;
 	file.close();
+
+	for (int z = 0; z < POPULATION_SIZE; z++) {
+		free(population[z].chromosome);
+	}
+	}//end main loop
 
     /* leave console up until keypress */
 	std::cout << "FINISHED AND WAITING FOR RETURN KEY" << std::endl;
@@ -250,8 +256,11 @@ void PrintMatrix(int arr[N][N]) {
 }
 
 void Mutate(MEMBER *member) {
-	int bit = rand() % CHROMOSOME_LENGTH;
-	member->chromosome[bit] ^= 1;
+	int bit;
+	for (int i = 0; i < (int) CHROMOSOME_LENGTH * 0.1; i++) {
+		bit = rand() % CHROMOSOME_LENGTH;
+		member->chromosome[bit] ^= 1;
+	}
 }
 
 void Climb(MEMBER *member) {
@@ -308,28 +317,42 @@ void BiasedCross(MEMBER parents[2], MEMBER *child)
 
 void RandomSinglePointCross(MEMBER parents[2], MEMBER *child)
 {
-	char *chromosome[2];
+	/*char *chromosome[2];
     chromosome[0] = parents[0].chromosome;
-    chromosome[1] = parents[1].chromosome;
+    chromosome[1] = parents[1].chromosome;*/
 
     char *child_chromosome = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
+	char *child_chromosome2 = (char*)(malloc(sizeof(char) * CHROMOSOME_LENGTH));
 
     int crossover = rand() % CHROMOSOME_LENGTH;
     
 	for (int i = 0; i < crossover; i++) {
-        child_chromosome[i] = chromosome[0][i];
-    }
+        //child_chromosome[i] = chromosome[0][i];
+		child_chromosome[i] = parents[0].chromosome[i];
+		child_chromosome2[i] = parents[1].chromosome[i];
+	}
 
     for (int i = crossover; i < CHROMOSOME_LENGTH; i++) {
-        child_chromosome[i] = chromosome[1][i];
+        //child_chromosome[i] = chromosome[1][i];
+		child_chromosome[i] = parents[1].chromosome[i];
+		child_chromosome2[i] = parents[0].chromosome[i];
     }
 
 	char adjacency_matrix[N][N];
     GetAdjacencyMatrixFromCharArray(child_chromosome, adjacency_matrix);
     int num_cliques = EvalAdj(adjacency_matrix);
 
-    child->chromosome = child_chromosome;
-    child->num_cliques = num_cliques;
+	char adjacency_matrix2[N][N];
+	GetAdjacencyMatrixFromCharArray(child_chromosome2, adjacency_matrix2);
+	int num_cliques2 = EvalAdj(adjacency_matrix);
+
+	if (num_cliques < num_cliques2) {
+		child->chromosome = child_chromosome;
+		child->num_cliques = num_cliques;
+	} else {
+		child->chromosome = child_chromosome2;
+		child->num_cliques = num_cliques2;
+	}
 }
 
 int EvalAdj(char adj[N][N]) {
